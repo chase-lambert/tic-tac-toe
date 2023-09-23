@@ -5,24 +5,46 @@
 
 (def game-state
   (r/atom {:squares (into [] (repeat 9 nil))
-           :turn "X"}))
+           :turn "X"
+           :winner nil}))
+
+(def winning-lines
+  [[0 1 2]
+   [3 4 5]
+   [6 7 8]
+   [0 3 6]
+   [1 4 7]
+   [2 5 8]
+   [0 4 8]
+   [2 4 6]])
 
 (defn click-handler [pos]
-  (let [squares (:squares @game-state)]
-    (when (nil? (nth squares pos))
-      (if (= "X" (:turn @game-state))
-        (swap! game-state assoc :squares (assoc squares pos "X")
-                                :turn "O")
-        (swap! game-state assoc :squares (assoc squares pos "O")
-                                :turn "X")))))
+  (let [current-square (nth (:squares @game-state) pos)]
+    (when (nil? current-square)
+      (let [new-move    (if (= "X" (:turn @game-state)) "X" "O")
+            new-squares (assoc (:squares @game-state) pos new-move)
+            winner      (first
+                          (for [[a b c] winning-lines
+                                :let [[d e f] [(nth new-squares a) 
+                                               (nth new-squares b) 
+                                               (nth new-squares c)]]
+                                :when (and d e f (= d e f))]
+                            d))]
+        (swap! game-state assoc :squares new-squares
+                                :turn (if (= "X" (:turn @game-state)) "O" "X")
+                                :winner winner)))))
+
 
 (defn square [pos value]
   [:button.square {:on-click (fn [] (click-handler pos))}
     value])
 
 (defn board []
-  (let [squares (:squares @game-state)]
+  (let [squares (:squares @game-state)
+        winner  (:winner @game-state)]
     [:<>
+      (when winner
+        [:div winner " wins!"])
       [:div.board-row
        [square 0 (nth squares 0)]
        [square 1 (nth squares 1)]
